@@ -1,33 +1,23 @@
-// src/Poll.tsx
-import React, { useState, useEffect } from "react";
-import "react-toastify/dist/ReactToastify.css";
-import { useDebounce } from "./hooks/useDebounce";
-import { useQuery, gql } from "@apollo/client";
+// src/MessageList.tsx
+import React, { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
+import { useQuery, gql } from "@apollo/client";
+import { useDebounce } from "./hooks/useDebounce";
 
-const GET_COMMUNITY_MESSAGES = gql`
-  query GetCommunityMessages($channel_id: String!, $user_id: String!, $limit: Int, $page: Int) {
-    getAllCommunityMessage(data: { channel_id: $channel_id, user_id: $user_id, limit: $limit, page: $page }) {
-      total_records
-      total_pages
-      current_page
-      per_page
-      results {
-        id
-        channel_id
-        message_type
-        is_deleted
-        meta_data {
-          poll_details {
-            question_text
-            is_anonymous_vote
-            is_multiple_response
-            my_votes
-            options_list {
-              option_id
-              option_text
-              vote_count
-            }
+const GET_COMMUNITY_MESSAGE_DETAIL = gql`
+  query GetCommunityMessageDetailV3($user_id: String!, $message_id: String!) {
+    getCommunityMessageDetailV3(data: { user_id: $user_id, message_id: $message_id }) {
+      id
+      meta_data {
+        poll_details {
+          question_text
+          is_anonymous_vote
+          is_multiple_response
+          my_votes
+          options_list {
+            option_id
+            option_text
+            vote_count
           }
         }
       }
@@ -41,24 +31,23 @@ type Option = {
   vote_count: number;
 };
 
-const Poll: React.FC = () => {
+const MessageList: React.FC = () => {
   const { channel_id, message_id, user_id } = useParams<{ channel_id: string; message_id: string; user_id: string }>();
-  const { loading, error, data } = useQuery(GET_COMMUNITY_MESSAGES, {
-    variables: { channel_id, user_id, limit: 1, page: 1 },
+  const { loading, error, data } = useQuery(GET_COMMUNITY_MESSAGE_DETAIL, {
+    variables: { user_id, message_id },
   });
 
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [previousOptions, setPreviousOptions] = useState<string[]>([]);
-  const [question, setQuestion] = useState<string>("");
   const [updatedOptions, setUpdatedOptions] = useState<Option[]>([]);
-  const [multiple, setMultiple] = useState<boolean>(false);
+  const [pollDetails, setPollDetails] = useState<any>(null);
 
   useEffect(() => {
-    if (data && data.getAllCommunityMessage.results.length > 0) {
-      const poll = data.getAllCommunityMessage.results[0].meta_data.poll_details;
-      setQuestion(poll.question_text);
+    if (data && data.getCommunityMessageDetailV3) {
+      const poll = data.getCommunityMessageDetailV3.meta_data.poll_details;
+      setPollDetails(poll);
       setUpdatedOptions(poll.options_list);
-      setMultiple(poll.is_multiple_response);
+      console.log("seting selectedOptions values");
       setSelectedOptions(poll.my_votes ? poll.my_votes.split(",") : []);
     }
   }, [data]);
@@ -66,7 +55,7 @@ const Poll: React.FC = () => {
   const handleSelectionChange = (optionId: string) => {
     setSelectedOptions(prev => {
       let newSelection: string[] = [];
-      if (multiple) {
+      if (pollDetails?.is_multiple_response) {
         newSelection = prev.includes(optionId) ? prev.filter(id => id !== optionId) : [...prev, optionId];
       } else {
         newSelection = prev.includes(optionId) ? [] : [optionId];
@@ -108,17 +97,27 @@ const Poll: React.FC = () => {
 
   return (
     <div>
-      <h3>{question}</h3>
-      {updatedOptions.map(option => (
-        <div key={option.option_id}>
-          <input type="checkbox" id={"id_" + option.option_id} checked={selectedOptions.includes(option.option_id)} onChange={() => handleSelectionChange(option.option_id)} />
-          <label htmlFor={"id_" + option.option_id}>
-            {option.option_text} ({option.vote_count})
-          </label>
-        </div>
-      ))}
+      <p>
+        Messages for <b>Channel:</b> {channel_id}, <b>MessageId:</b> {message_id} and <b>User:</b> {user_id}
+      </p>
+      {pollDetails ? (
+        <>
+          <h3>{pollDetails.question_text}</h3>
+          <h3>({pollDetails.is_multiple_response ? "Multiple" : "Single"} Select)</h3>
+          {updatedOptions.map(option => (
+            <div key={option.option_id}>
+              <input type="checkbox" id={"id_" + option.option_id} checked={selectedOptions.includes(option.option_id)} onChange={() => handleSelectionChange(option.option_id)} />
+              <label htmlFor={"id_" + option.option_id}>
+                {option.option_id} ({option.vote_count})
+              </label>
+            </div>
+          ))}
+        </>
+      ) : (
+        <p>No poll details available.</p>
+      )}
     </div>
   );
 };
 
-export default Poll;
+export default MessageList;
