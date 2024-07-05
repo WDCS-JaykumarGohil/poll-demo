@@ -40,7 +40,8 @@ const App: React.FC = () => {
 
   return (
     <div style={{ padding: "20px" }}>
-      <h1>Poll Playground (1 sec debounce with history tracking))</h1>
+      <h1>Poll Playground</h1>
+      <h5>1 sec debounce with history tracking</h5>
       <Poll {...singleSelectionPoll} />
       <Poll {...multiSelectionPoll} />
     </div>
