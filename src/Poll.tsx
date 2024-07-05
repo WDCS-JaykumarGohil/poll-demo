@@ -39,7 +39,7 @@ const Poll: React.FC<PollProps> = ({ question, options, multiple }) => {
     setPreviousOptions(selectedOptions);
   };
 
-  const debouncedNotify = useDebounce(notify, 2000);
+  const debouncedNotify = useDebounce(notify, 1000);
 
   useEffect(() => {
     debouncedNotify();
