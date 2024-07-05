@@ -4,7 +4,7 @@ import Poll from "./Poll";
 
 const App: React.FC = () => {
   const singleSelectionPoll = {
-    question: "Single Selection POLL",
+    question: "Choose Your Favorite (Single Selection)?",
     options: [
       { id: "1", text: "Option 1" },
       { id: "2", text: "Option 2" },
@@ -21,7 +21,7 @@ const App: React.FC = () => {
   };
 
   const multiSelectionPoll = {
-    question: "Multi Selection POLL",
+    question: "Select All That Apply (Multi Selection)",
     options: [
       { id: "20", text: "Option 20" },
       { id: "21", text: "Option 21" },
@@ -40,7 +40,7 @@ const App: React.FC = () => {
 
   return (
     <div style={{ padding: "20px" }}>
-      <h1>Poll Demo</h1>
+      <h1>Poll Playground (1 sec debounce with history tracking))</h1>
       <Poll {...singleSelectionPoll} />
       <Poll {...multiSelectionPoll} />
     </div>
