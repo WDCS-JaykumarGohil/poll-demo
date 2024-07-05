@@ -6,6 +6,7 @@ import { useDebounce } from "./hooks/useDebounce";
 type Option = {
   id: string;
   text: string;
+  vote_count: number;
 };
 
 type PollProps = {
@@ -17,14 +18,28 @@ type PollProps = {
 const Poll: React.FC<PollProps> = ({ question, options, multiple }) => {
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [previousOptions, setPreviousOptions] = useState<string[]>([]);
+  const [updatedOptions, setUpdatedOptions] = useState<Option[]>(options);
 
   const handleSelectionChange = (optionId: string) => {
     setSelectedOptions(prev => {
+      let newSelection: string[] = [];
       if (multiple) {
-        return prev.includes(optionId) ? prev.filter(id => id !== optionId) : [...prev, optionId];
+        newSelection = prev.includes(optionId) ? prev.filter(id => id !== optionId) : [...prev, optionId];
       } else {
-        return prev.includes(optionId) ? [] : [optionId];
+        newSelection = prev.includes(optionId) ? [] : [optionId];
       }
+
+      const updated = updatedOptions.map(option => {
+        if (newSelection.includes(option.id) && !prev.includes(option.id)) {
+          return { ...option, vote_count: option.vote_count + 1 };
+        } else if (!newSelection.includes(option.id) && prev.includes(option.id)) {
+          return { ...option, vote_count: option.vote_count - 1 };
+        }
+        return option;
+      });
+
+      setUpdatedOptions(updated);
+      return newSelection;
     });
   };
 
@@ -43,15 +58,17 @@ const Poll: React.FC<PollProps> = ({ question, options, multiple }) => {
 
   useEffect(() => {
     debouncedNotify();
-  }, [selectedOptions, debouncedNotify]);
+  }, [selectedOptions]);
 
   return (
     <div>
       <h3>{question}</h3>
-      {options.map(option => (
+      {updatedOptions.map(option => (
         <div key={option.id}>
           <input type="checkbox" id={"id_" + option.id} checked={selectedOptions.includes(option.id)} onChange={() => handleSelectionChange(option.id)} />
-          <label htmlFor={"id_" + option.id}>{option.text}</label>
+          <label htmlFor={"id_" + option.id}>
+            {option.text} ({option.vote_count})
+          </label>
         </div>
       ))}
     </div>

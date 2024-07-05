@@ -1,8 +1,9 @@
-// src/MessageList.tsx
+// src/Poll.tsx
 import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
-import { useQuery, gql } from "@apollo/client";
+import "react-toastify/dist/ReactToastify.css";
 import { useDebounce } from "./hooks/useDebounce";
+import { useQuery, gql } from "@apollo/client";
+import { useParams } from "react-router-dom";
 
 const GET_COMMUNITY_MESSAGES = gql`
   query GetCommunityMessages($channel_id: String!, $user_id: String!, $limit: Int, $page: Int) {
@@ -34,70 +35,52 @@ const GET_COMMUNITY_MESSAGES = gql`
   }
 `;
 
-const MessageList: React.FC = () => {
+type Option = {
+  option_id: string;
+  option_text: string;
+  vote_count: number;
+};
+
+const Poll: React.FC = () => {
   const { channel_id, user_id } = useParams<{ channel_id: string; user_id: string }>();
   const { loading, error, data } = useQuery(GET_COMMUNITY_MESSAGES, {
-    variables: { channel_id, user_id, limit: 10, page: 1 },
+    variables: { channel_id, user_id, limit: 1, page: 1 },
   });
 
-  const [selectedOptions, setSelectedOptions] = useState<{ [key: string]: string[] }>({});
-  const [updatedOptions, setUpdatedOptions] = useState<{ [key: string]: any[] }>({});
-  const [changedMessageIds, setChangedMessageIds] = useState<string[]>([]);
+  const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
+  const [previousOptions, setPreviousOptions] = useState<string[]>([]);
+  const [question, setQuestion] = useState<string>("");
+  const [options, setOptions] = useState<Option[]>([]);
+  const [multiple, setMultiple] = useState<boolean>(false);
 
   useEffect(() => {
-    if (data) {
-      const initialOptions = data.getAllCommunityMessage.results.reduce((acc: any, message: any) => {
-        if (message.message_type === "POLL") {
-          acc[message.id] = message.meta_data.poll_details.options_list;
-        }
-        return acc;
-      }, {});
-      setUpdatedOptions(initialOptions);
+    if (data && data.getAllCommunityMessage.results.length > 0) {
+      const poll = data.getAllCommunityMessage.results[0].meta_data.poll_details;
+      setQuestion(poll.question_text);
+      setOptions(poll.options_list);
+      setMultiple(poll.is_multiple_response);
     }
   }, [data]);
 
-  const handleSelectionChange = (messageId: string, optionId: string, isMultiple: boolean) => {
+  const handleSelectionChange = (optionId: string) => {
     setSelectedOptions(prev => {
-      const prevSelected = prev[messageId] || [];
-      let newSelection: string[] = [];
-
-      if (isMultiple) {
-        newSelection = prevSelected.includes(optionId) ? prevSelected.filter(id => id !== optionId) : [...prevSelected, optionId];
+      if (multiple) {
+        return prev.includes(optionId) ? prev.filter(id => id !== optionId) : [...prev, optionId];
       } else {
-        newSelection = prevSelected.includes(optionId) ? [] : [optionId];
+        return prev.includes(optionId) ? [] : [optionId];
       }
-
-      const updated = updatedOptions[messageId].map(option => {
-        if (newSelection.includes(option.option_id) && !prevSelected.includes(option.option_id)) {
-          return { ...option, vote_count: option.vote_count + 1 };
-        } else if (!newSelection.includes(option.option_id) && prevSelected.includes(option.option_id)) {
-          return { ...option, vote_count: option.vote_count - 1 };
-        }
-        return option;
-      });
-
-      setUpdatedOptions(prev => ({
-        ...prev,
-        [messageId]: updated,
-      }));
-
-      setChangedMessageIds(prev => [...new Set([...prev, messageId])]);
-
-      return { ...prev, [messageId]: newSelection };
     });
   };
 
   const notify = () => {
-    changedMessageIds.forEach(messageId => {
-      const deselectedOptions = (selectedOptions[messageId] || []).filter(opt => !(selectedOptions[messageId] || []).includes(opt));
-      const selected = (selectedOptions[messageId] || []).filter(opt => !(selectedOptions[messageId] || []).includes(opt));
-      if (deselectedOptions.length > 0 || selected.length > 0) {
-        const message = `Socket called with new state | DESELECT: ${deselectedOptions.join(", ")}, SELECT: ${selected.join(", ")}`;
-        console.log(message);
-        alert(message);
-      }
-    });
-    setChangedMessageIds([]);
+    const deselectedOptions = previousOptions.filter(opt => !selectedOptions.includes(opt));
+    const selected = selectedOptions.filter(opt => !previousOptions.includes(opt));
+    if (deselectedOptions.length > 0 || selected.length > 0) {
+      const message = `Socket called with new state | DESELECT: ${deselectedOptions.join(", ")}, SELECT: ${selected.join(", ")}`;
+      console.log(message);
+      alert(message);
+    }
+    setPreviousOptions(selectedOptions);
   };
 
   const debouncedNotify = useDebounce(notify, 1000);
@@ -111,36 +94,17 @@ const MessageList: React.FC = () => {
 
   return (
     <div>
-      <h1>
-        Messages for Channel: {channel_id} and User: {user_id}
-      </h1>
-      <ul>
-        {data.getAllCommunityMessage.results
-          .filter((message: any) => message.message_type === "POLL")
-          .map((message: any) => (
-            <li key={message.id}>
-              <p>Message Type: {message.meta_data.poll_details.is_multiple_response ? "Multiple" : "Single"} Selection</p>
-              {message.meta_data?.poll_details && (
-                <div>
-                  <p>Poll Question: {message.meta_data.poll_details.question_text}</p>
-                  <p>Options:</p>
-                  <ul>
-                    {updatedOptions[message.id]?.map((option: any) => (
-                      <li key={option.option_id}>
-                        <input type="checkbox" id={"id_" + option.option_id} checked={(selectedOptions[message.id] || []).includes(option.option_id)} onChange={() => handleSelectionChange(message.id, option.option_id, message.meta_data.poll_details.is_multiple_response)} />
-                        <label htmlFor={"id_" + option.option_id}>
-                          {option.option_text} (Votes: {option.vote_count})
-                        </label>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </li>
-          ))}
-      </ul>
+      <h3>{question}</h3>
+      {options.map(option => (
+        <div key={option.option_id}>
+          <input type="checkbox" id={"id_" + option.option_id} checked={selectedOptions.includes(option.option_id)} onChange={() => handleSelectionChange(option.option_id)} />
+          <label htmlFor={"id_" + option.option_id}>
+            {option.option_id} ({option.vote_count})
+          </label>
+        </div>
+      ))}
     </div>
   );
 };
 
-export default MessageList;
+export default Poll;
