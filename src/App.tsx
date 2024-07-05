@@ -67,7 +67,7 @@ const App: React.FC = () => {
                 </>
               }
             />
-            <Route path="/messages/:channel_id/:user_id" element={<MessageList />} />
+            <Route path="/messages/:channel_id/:message_id/:user_id" element={<MessageList />} />
           </Routes>
         </div>
       </Router>

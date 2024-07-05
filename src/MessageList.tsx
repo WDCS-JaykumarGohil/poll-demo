@@ -42,7 +42,7 @@ type Option = {
 };
 
 const Poll: React.FC = () => {
-  const { channel_id, user_id } = useParams<{ channel_id: string; user_id: string }>();
+  const { channel_id, message_id, user_id } = useParams<{ channel_id: string; message_id: string; user_id: string }>();
   const { loading, error, data } = useQuery(GET_COMMUNITY_MESSAGES, {
     variables: { channel_id, user_id, limit: 1, page: 1 },
   });
@@ -59,6 +59,7 @@ const Poll: React.FC = () => {
       setQuestion(poll.question_text);
       setUpdatedOptions(poll.options_list);
       setMultiple(poll.is_multiple_response);
+      setSelectedOptions(poll.my_votes ? poll.my_votes.split(",") : []);
     }
   }, [data]);
 
@@ -100,7 +101,7 @@ const Poll: React.FC = () => {
 
   useEffect(() => {
     debouncedNotify();
-  }, [selectedOptions]);
+  }, [selectedOptions, debouncedNotify]);
 
   if (loading) return <p>Loading...</p>;
   if (error) return <p>Error: {error.message}</p>;
@@ -112,7 +113,7 @@ const Poll: React.FC = () => {
         <div key={option.option_id}>
           <input type="checkbox" id={"id_" + option.option_id} checked={selectedOptions.includes(option.option_id)} onChange={() => handleSelectionChange(option.option_id)} />
           <label htmlFor={"id_" + option.option_id}>
-            {option.option_id} ({option.vote_count})
+            {option.option_text} ({option.vote_count})
           </label>
         </div>
       ))}
