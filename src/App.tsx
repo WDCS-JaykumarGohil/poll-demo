@@ -1,5 +1,9 @@
 // src/App.tsx
 import React from "react";
+import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
+import { ApolloProvider } from "@apollo/client";
+import client from "./apolloClient";
+import MessageList from "./MessageList";
 import Poll from "./Poll";
 
 const App: React.FC = () => {
@@ -38,13 +42,36 @@ const App: React.FC = () => {
     multiple: true,
   };
 
+  // return (
+  //   <div style={{ padding: "20px" }}>
+  //     <h1>Poll Playground</h1>
+  //     <h5>1 sec debounce with history tracking</h5>
+  //     <Poll {...singleSelectionPoll} />
+  //     <Poll {...multiSelectionPoll} />
+  //   </div>
+  // );
+
   return (
-    <div style={{ padding: "20px" }}>
-      <h1>Poll Playground</h1>
-      <h5>1 sec debounce with history tracking</h5>
-      <Poll {...singleSelectionPoll} />
-      <Poll {...multiSelectionPoll} />
-    </div>
+    <ApolloProvider client={client}>
+      <Router>
+        <div style={{ padding: "20px" }}>
+          <h1>Poll Playground</h1>
+          <h5>1 sec debounce with history tracking</h5>
+          <Routes>
+            <Route
+              path="/"
+              element={
+                <>
+                  <Poll {...singleSelectionPoll} />
+                  <Poll {...multiSelectionPoll} />
+                </>
+              }
+            />
+            <Route path="/messages/:channel_id/:user_id" element={<MessageList />} />
+          </Routes>
+        </div>
+      </Router>
+    </ApolloProvider>
   );
 };
 
