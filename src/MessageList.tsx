@@ -50,25 +50,38 @@ const Poll: React.FC = () => {
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [previousOptions, setPreviousOptions] = useState<string[]>([]);
   const [question, setQuestion] = useState<string>("");
-  const [options, setOptions] = useState<Option[]>([]);
+  const [updatedOptions, setUpdatedOptions] = useState<Option[]>([]);
   const [multiple, setMultiple] = useState<boolean>(false);
 
   useEffect(() => {
     if (data && data.getAllCommunityMessage.results.length > 0) {
       const poll = data.getAllCommunityMessage.results[0].meta_data.poll_details;
       setQuestion(poll.question_text);
-      setOptions(poll.options_list);
+      setUpdatedOptions(poll.options_list);
       setMultiple(poll.is_multiple_response);
     }
   }, [data]);
 
   const handleSelectionChange = (optionId: string) => {
     setSelectedOptions(prev => {
+      let newSelection: string[] = [];
       if (multiple) {
-        return prev.includes(optionId) ? prev.filter(id => id !== optionId) : [...prev, optionId];
+        newSelection = prev.includes(optionId) ? prev.filter(id => id !== optionId) : [...prev, optionId];
       } else {
-        return prev.includes(optionId) ? [] : [optionId];
+        newSelection = prev.includes(optionId) ? [] : [optionId];
       }
+
+      const updated = updatedOptions.map(option => {
+        if (newSelection.includes(option.option_id) && !prev.includes(option.option_id)) {
+          return { ...option, vote_count: option.vote_count + 1 };
+        } else if (!newSelection.includes(option.option_id) && prev.includes(option.option_id)) {
+          return { ...option, vote_count: option.vote_count - 1 };
+        }
+        return option;
+      });
+
+      setUpdatedOptions(updated);
+      return newSelection;
     });
   };
 
@@ -87,7 +100,7 @@ const Poll: React.FC = () => {
 
   useEffect(() => {
     debouncedNotify();
-  }, [selectedOptions, debouncedNotify]);
+  }, [selectedOptions]);
 
   if (loading) return <p>Loading...</p>;
   if (error) return <p>Error: {error.message}</p>;
@@ -95,7 +108,7 @@ const Poll: React.FC = () => {
   return (
     <div>
       <h3>{question}</h3>
-      {options.map(option => (
+      {updatedOptions.map(option => (
         <div key={option.option_id}>
           <input type="checkbox" id={"id_" + option.option_id} checked={selectedOptions.includes(option.option_id)} onChange={() => handleSelectionChange(option.option_id)} />
           <label htmlFor={"id_" + option.option_id}>
